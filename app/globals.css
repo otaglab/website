@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+:root { --navy:#0D2B4E; --navy-2:#123A65; --teal:#1ABC9C; --dark-teal:#159B82; --light-teal:#ECFBF7; --light-blue:#EAF4FB; --surface:#F8FAFC; --text:#182230; --muted-text:#5D6D7E; --border:#D7E2EA; --success:#16A34A; --warning:#D97706; --error:#DC2626; color-scheme:light; }
+@theme inline { --color-background:var(--surface); --color-foreground:var(--text); --color-primary:var(--teal); --color-primary-foreground:#fff; --color-border:var(--border); --color-muted-foreground:var(--muted-text); --font-sans:'Inter',ui-sans-serif,system-ui,sans-serif; --radius-lg:.75rem; }
+* { box-sizing:border-box; }
+html { background:var(--surface); scroll-behavior:smooth; }
+body { margin:0; background:var(--surface); color:var(--text); font-family:Inter,ui-sans-serif,system-ui,sans-serif; }
+button,input,select,textarea { font:inherit; }
+button { cursor:pointer; }
+a { transition:color .2s ease, background-color .2s ease, border-color .2s ease, transform .2s ease; }
+::selection { background:var(--light-teal); color:var(--navy); }
+@media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; animation:none!important; } }
