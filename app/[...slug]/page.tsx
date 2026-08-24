@@ -1,4 +1,4 @@
-import { AuthPage, ContactPage, AboutPage, FAQPage, GenericPage, HowPage, MarketingPage, PricingPage, SpacesPage, DetailPage } from '@/components/gowork'
+import { AuthPage, ContactPage, AboutPage, FAQPage, GenericPage, HowPage, MarketingPage, PricingPage, SpacesPage, DetailPage } from '@/components/otaglab'
 
 export default async function Page({ params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await params
