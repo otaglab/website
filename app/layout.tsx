@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   title: 'GoWork — Flexible workspaces across Baku',
   description: 'Discover professional workspaces across Baku and work closer to where you are.',
   generator: 'GoWork',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
 }
 
 export const viewport: Viewport = {
