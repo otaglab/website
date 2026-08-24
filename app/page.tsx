@@ -1,4 +1,4 @@
-import { HomePage } from '@/components/gowork'
+import { HomePage } from '@/components/otaglab'
 
 export default function Page() {
   return <HomePage />
