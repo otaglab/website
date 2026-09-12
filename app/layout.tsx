@@ -3,9 +3,9 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'otaglab — Flexible workspaces across Baku',
+  title: 'OtagLab — Flexible workspaces across Baku',
   description: 'Discover professional workspaces across Baku and work closer to where you are.',
-  generator: 'otaglab',
+  generator: 'OtagLab',
   icons: {
     icon: '/icon.svg',
     shortcut: '/icon.svg',
