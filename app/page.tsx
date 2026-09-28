@@ -1,5 +1,5 @@
-import { HomePage } from '@/components/otaglab'
+import { redirect } from 'next/navigation'
 
 export default function Page() {
-  return <HomePage />
+  redirect('/az')
 }
