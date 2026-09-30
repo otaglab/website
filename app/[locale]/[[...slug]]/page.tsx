@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation'
-import { AuthPage, ContactPage, AboutPage, FAQPage, GenericPage, HowPage, MarketingPage, PartnerPage, PricingPage, SpacesPage, DetailPage, WorkflowPage, InsightsPage } from '@/components/otaglab'
+import { notFound, redirect } from 'next/navigation'
+import { AuthPage, ContactPage, AboutPage, FAQPage, HowPage, MarketingPage, PartnerPage, PricingPage, SpacesPage, DetailPage, WorkflowPage, InsightsPage } from '@/components/otaglab'
 import { isLocale, defaultLocale, type Locale } from '@/lib/i18n'
 
 export default async function LocalizedPage({ params }: { params: Promise<{ locale: string; slug?: string[] }> }) {
@@ -24,12 +24,20 @@ export default async function LocalizedPage({ params }: { params: Promise<{ loca
   if (path === 'faq') return <FAQPage />
   if (path === 'login') return <AuthPage />
   if (path === 'signup') return <AuthPage signup />
-  return <GenericPage title="Page not found" copy="The page you are looking for is not available in this prototype." />
+  notFound()
 }
 
 async function LocalizedHome({ locale }: { locale: Locale }) {
   const { HomePage } = await import('@/components/otaglab')
   return <HomePage locale={locale} />
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale: rawLocale } = await params
+  const locale = isLocale(rawLocale) ? rawLocale : defaultLocale
+  const titles = { en: 'OtagLab — Flexible workspaces across Baku', az: 'OtagLab — Bakıda çevik iş məkanları', ru: 'OtagLab — Гибкие рабочие пространства в Баку' }
+  const descriptions = { en: 'Discover professional workspaces across Baku and work closer to where you are.', az: 'Bakıda peşəkar iş məkanlarını kəşf edin və olduğunuz yerə daha yaxın işləyin.', ru: 'Откройте профессиональные рабочие пространства в Баку и работайте ближе к себе.' }
+  return { title: titles[locale], description: descriptions[locale] }
 }
 
 export function generateStaticParams() {

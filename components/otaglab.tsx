@@ -1,11 +1,25 @@
 'use client'
 
 import Image from 'next/image'
-import Link from 'next/link'
+import NextLink, { type LinkProps } from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { languageNames, locales, type Locale } from '@/lib/i18n'
+import { defaultLocale, languageNames, locales, type Locale } from '@/lib/i18n'
 import { ArrowRight, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronDown, ChevronRight, Clock3, Coffee, Heart, MapPin, Menu, Navigation, Search, ShieldCheck, Sparkles, Users, Wifi, X } from 'lucide-react'
+
+function localizedHref(href: LinkProps['href'], pathname: string) {
+  if (typeof href !== 'string' || !href.startsWith('/') || href.startsWith('//')) return href
+  const current = pathname.split('/').filter(Boolean)
+  const locale = locales.includes(current[0] as Locale) ? current[0] as Locale : defaultLocale
+  if (href === '/') return `/${locale}`
+  if (href.startsWith(`/${locale}/`) || href === `/${locale}`) return href
+  return `/${locale}${href}`
+}
+
+function Link({ href, ...props }: LinkProps & { children?: React.ReactNode }) {
+  const pathname = usePathname()
+  return <NextLink href={localizedHref(href, pathname)} {...props} />
+}
 
 export const spaces = [
   { slug: 'coworking-space-01', name: 'Coworking Space 01', district: 'Yasamal', distance: '1.8 km', price: '₼15', types: 'Hot Desk · Meeting Room', amenities: 'Wi-Fi · Coffee · Quiet Area', status: 'Open until 20:00', image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=900&q=85', verified: true, x: '32%', y: '54%' },
@@ -20,7 +34,7 @@ export function Header() {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   const pathParts = pathname.split('/').filter(Boolean)
-  const currentLocale = locales.includes(pathParts[0] as Locale) ? pathParts[0] as Locale : 'az'
+  const currentLocale = locales.includes(pathParts[0] as Locale) ? pathParts[0] as Locale : defaultLocale
   const localizedPath = pathParts[0] === currentLocale ? pathParts.slice(1).join('/') : pathParts.join('/')
   return <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-white/95 backdrop-blur"><div className="mx-auto flex h-[72px] max-w-[1320px] items-center justify-between px-5 lg:px-8"><Logo /><nav className="hidden items-center gap-7 text-sm font-medium text-[var(--muted-text)] lg:flex"><div className="group relative py-6"><Link href="/about" className="flex items-center gap-1 hover:text-[var(--navy)]">About <ChevronDown className="size-4" /></Link><div className="invisible absolute left-0 top-14 w-52 rounded-xl border border-[var(--border)] bg-white p-2 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"><Link className="block rounded-lg px-3 py-2 hover:bg-[var(--light-teal)]" href="/about">Our company</Link><Link className="block rounded-lg px-3 py-2 hover:bg-[var(--light-teal)]" href="/how-it-works">How OtagLab works</Link></div></div><div className="group relative py-6"><Link href="/how-it-works" className="flex items-center gap-1 hover:text-[var(--navy)]">How it works <ChevronDown className="size-4" /></Link><div className="invisible absolute left-0 top-14 w-56 rounded-xl border border-[var(--border)] bg-white p-2 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"><Link className="block rounded-lg px-3 py-2 hover:bg-[var(--light-teal)]" href="/how-it-works/individuals">For Individuals</Link><Link className="block rounded-lg px-3 py-2 hover:bg-[var(--light-teal)]" href="/for-companies">For Businesses</Link><Link className="block rounded-lg px-3 py-2 hover:bg-[var(--light-teal)]" href="/for-partners">For Coworking spaces</Link></div></div><div className="group relative py-6"><button className="flex items-center gap-1 hover:text-[var(--navy)]">Insights <ChevronDown className="size-4" /></button><div className="invisible absolute left-0 top-14 w-40 rounded-xl border border-[var(--border)] bg-white p-2 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"><Link className="block rounded-lg px-3 py-2 hover:bg-[var(--light-teal)]" href="/insights/news">News</Link><Link className="block rounded-lg px-3 py-2 hover:bg-[var(--light-teal)]" href="/insights/events">Events</Link><Link className="block rounded-lg px-3 py-2 hover:bg-[var(--light-teal)]" href="/insights/blog">Blogpost</Link></div></div></nav><div className="hidden items-center gap-4 lg:flex"><span className="border-l border-[var(--border)] pl-4 text-sm font-semibold text-[var(--muted-text)]">EN</span></div><button className="rounded-lg p-2 lg:hidden" onClick={() => setOpen(!open)} aria-label="Open menu">{open ? <X /> : <Menu />}</button></div>{open && <div className="flex flex-col gap-4 border-t border-[var(--border)] bg-white px-5 py-5 lg:hidden"><Link href="/about">About</Link><Link href="/how-it-works">How it works</Link><Link href="/how-it-works/individuals">For Individuals</Link><Link href="/for-companies">For Businesses</Link><Link href="/for-partners">For Coworking spaces</Link><Link href="/insights/news">Insights</Link></div>}<div className="fixed right-5 top-5 z-50 flex gap-1 rounded-lg border border-[var(--border)] bg-white/95 p-1 shadow-sm">{locales.map((locale) => <Link key={locale} href={`/${locale}${localizedPath ? `/${localizedPath}` : ''}`} aria-label={`${languageNames[locale]} language`} className={`rounded-md px-2 py-1 text-[11px] font-bold ${currentLocale === locale ? 'bg-[var(--teal)] text-white' : 'text-[var(--muted-text)] hover:bg-[var(--surface)]'}`}>{languageNames[locale]}</Link>)}</div></header>
 }
