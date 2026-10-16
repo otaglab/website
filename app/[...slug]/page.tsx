@@ -1,10 +1,21 @@
 import { AuthPage, ContactPage, AboutPage, FAQPage, GenericPage, HowPage, MarketingPage, PartnerPage, PricingPage, SpacesPage, DetailPage, WorkflowPage, InsightsPage } from '@/components/otaglab'
+import { getCoworkingSpaces } from '@/lib/coworking'
+
+async function SpacesRoute() {
+  const spaceData = await getCoworkingSpaces()
+  return <SpacesPage spaceData={spaceData as never} />
+}
+
+async function DetailRoute({ slug }: { slug: string }) {
+  const spaceData = await getCoworkingSpaces()
+  return <DetailPage slug={slug} spaceData={spaceData as never} />
+}
 
 export default async function Page({ params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = await params
   const path = slug.join('/')
-  if (path === 'spaces') return <SpacesPage />
-  if (path.startsWith('spaces/')) return <DetailPage slug={slug[1]} />
+  if (path === 'spaces') return <SpacesRoute />
+  if (path.startsWith('spaces/')) return <DetailRoute slug={slug[1]} />
   if (path === 'pricing') return <PricingPage />
   if (path === 'for-companies') return <MarketingPage kind="companies" />
   if (path === 'for-partners') return <MarketingPage kind="partners" />
