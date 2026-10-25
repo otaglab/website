@@ -22,3 +22,5 @@ next-env.d.ts
 
 # Claude
 .claude/
+# Local CMS uploads (production uses S3)
+/media

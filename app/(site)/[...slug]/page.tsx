@@ -1,4 +1,4 @@
-import { AuthPage, ContactPage, AboutPage, FAQPage, GenericPage, HowPage, MarketingPage, PartnerPage, PricingPage, SpacesPage, DetailPage, WorkflowPage, InsightsPage } from '@/components/otaglab'
+import { AuthPage, ContactPage, AboutPage, FAQPage, GenericPage, HowPage, MarketingPage, PartnerPage, PricingPage, SpacesPage, DetailPage, WorkflowPage } from '@/components/otaglab'
 import { getCoworkingSpaces } from '@/lib/coworking'
 
 // Re-read listings from the database at most once a minute
@@ -25,9 +25,6 @@ export default async function Page({ params }: { params: Promise<{ slug: string[
   if (path === 'for-partners/apply') return <PartnerPage />
   if (path === 'how-it-works') return <HowPage />
   if (path === 'how-it-works/individuals') return <WorkflowPage kind="individuals" />
-  if (path === 'insights/news') return <InsightsPage type="news" />
-  if (path === 'insights/events') return <InsightsPage type="events" />
-  if (path === 'insights/blog') return <InsightsPage type="blog" />
   if (path === 'about') return <AboutPage />
   if (path === 'contact') return <ContactPage />
   if (path === 'faq') return <FAQPage />
