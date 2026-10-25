@@ -12,3 +12,4 @@ button { cursor:pointer; }
 a { transition:color .2s ease, background-color .2s ease, border-color .2s ease, transform .2s ease; }
 ::selection { background:var(--light-teal); color:var(--navy); }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; animation:none!important; } }
+.space-map-popup .maplibregl-popup-content { border-radius:.75rem; padding:.75rem; min-width:10rem; box-shadow:0 12px 30px rgba(13,43,78,.18); font-family:inherit; }
