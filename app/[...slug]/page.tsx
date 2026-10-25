@@ -1,14 +1,17 @@
 import { AuthPage, ContactPage, AboutPage, FAQPage, GenericPage, HowPage, MarketingPage, PartnerPage, PricingPage, SpacesPage, DetailPage, WorkflowPage, InsightsPage } from '@/components/otaglab'
 import { getCoworkingSpaces } from '@/lib/coworking'
 
+// Re-read listings from the database at most once a minute
+export const revalidate = 60
+
 async function SpacesRoute() {
   const spaceData = await getCoworkingSpaces()
-  return <SpacesPage spaceData={spaceData as never} />
+  return <SpacesPage spaceData={spaceData} />
 }
 
 async function DetailRoute({ slug }: { slug: string }) {
   const spaceData = await getCoworkingSpaces()
-  return <DetailPage slug={slug} spaceData={spaceData as never} />
+  return <DetailPage slug={slug} spaceData={spaceData} />
 }
 
 export default async function Page({ params }: { params: Promise<{ slug: string[] }> }) {
