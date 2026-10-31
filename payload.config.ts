@@ -6,8 +6,10 @@ import { FixedToolbarFeature, lexicalEditor } from '@payloadcms/richtext-lexical
 import { s3Storage } from '@payloadcms/storage-s3'
 import { buildConfig } from 'payload'
 import sharp from 'sharp'
+import { Amenities } from './cms/collections/Amenities'
 import { Media } from './cms/collections/Media'
 import { Posts } from './cms/collections/Posts'
+import { Spaces } from './cms/collections/Spaces'
 import { Users } from './cms/collections/Users'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -27,7 +29,17 @@ export default buildConfig({
     meta: { titleSuffix: ' · OtagLab CMS' },
     importMap: { baseDir: dirname },
   },
-  collections: [Posts, Media, Users],
+  collections: [Spaces, Amenities, Posts, Media, Users],
+  // Space texts are stored in all three languages; the site shows English until /az and /ru exist
+  localization: {
+    locales: [
+      { code: 'en', label: 'English' },
+      { code: 'az', label: 'Azərbaycanca' },
+      { code: 'ru', label: 'Русский' },
+    ],
+    defaultLocale: 'en',
+    fallback: true,
+  },
   editor: lexicalEditor({ features: ({ defaultFeatures }) => [...defaultFeatures, FixedToolbarFeature()] }),
   db: postgresAdapter({
     pool: { connectionString: process.env.DATABASE_URL },

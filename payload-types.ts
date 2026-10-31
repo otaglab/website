@@ -67,6 +67,8 @@ export interface Config {
   };
   blocks: {};
   collections: {
+    spaces: Space;
+    amenities: Amenity;
     posts: Post;
     media: Media;
     users: User;
@@ -77,6 +79,8 @@ export interface Config {
   };
   collectionsJoins: {};
   collectionsSelect: {
+    spaces: SpacesSelect<false> | SpacesSelect<true>;
+    amenities: AmenitiesSelect<false> | AmenitiesSelect<true>;
     posts: PostsSelect<false> | PostsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
@@ -88,10 +92,10 @@ export interface Config {
   db: {
     defaultIDType: number;
   };
-  fallbackLocale: null;
+  fallbackLocale: ('false' | 'none' | 'null') | false | null | ('en' | 'az' | 'ru') | ('en' | 'az' | 'ru')[];
   globals: {};
   globalsSelect: {};
-  locale: null;
+  locale: 'en' | 'az' | 'ru';
   widgets: {
     collections: CollectionsWidget;
   };
@@ -117,6 +121,274 @@ export interface UserAuthOperations {
   unlock: {
     email: string;
     password: string;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "spaces".
+ */
+export interface Space {
+  id: number;
+  name: string;
+  /**
+   * e.g. BAK-001. Never change it once used.
+   */
+  code: string;
+  tagline?: string | null;
+  /**
+   * Required in English.
+   */
+  about?: string | null;
+  capacity?: number | null;
+  /**
+   * Shows a Verified badge.
+   */
+  verified?: boolean | null;
+  city: string;
+  district?:
+    | (
+        | 'binagadi'
+        | 'garadagh'
+        | 'khatai'
+        | 'khazar'
+        | 'narimanov'
+        | 'nasimi'
+        | 'nizami'
+        | 'pirallahi'
+        | 'sabail'
+        | 'sabunchu'
+        | 'surakhani'
+        | 'yasamal'
+      )
+    | null;
+  address: string;
+  floor?: string | null;
+  metro?: string | null;
+  landmark?: string | null;
+  /**
+   * Longitude and latitude. Find them by right-clicking the place in Google Maps.
+   *
+   * @minItems 2
+   * @maxItems 2
+   */
+  location?: [number, number] | null;
+  googleMapsUrl?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  website?: string | null;
+  instagram?: string | null;
+  facebook?: string | null;
+  linkedin?: string | null;
+  options?:
+    | {
+        type:
+          | 'hot-desk'
+          | 'fixed-desk'
+          | 'cubicle-desk'
+          | 'private-office'
+          | 'meeting-room'
+          | 'conference-room'
+          | 'seminar-room'
+          | 'event-space'
+          | 'phone-booth'
+          | 'capsule'
+          | 'package'
+          | 'virtual-office'
+          | 'other';
+        name?: string | null;
+        description?: string | null;
+        seats?: number | null;
+        units?: number | null;
+        currency?: ('AZN' | 'USD' | 'EUR') | null;
+        priceHour?: number | null;
+        priceEvening?: number | null;
+        priceDay?: number | null;
+        priceWeek?: number | null;
+        priceMonth?: number | null;
+        vatIncluded?: boolean | null;
+        available?: boolean | null;
+        minimumBooking?: string | null;
+        /**
+         * Shown on the website, e.g. "Evening rate after 18:00".
+         */
+        publicNote?: string | null;
+        /**
+         * Staff only. Never shown on the website.
+         */
+        internalNote?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  amenities?:
+    | {
+        amenity: number | Amenity;
+        cost?: ('included' | 'paid') | null;
+        details?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  hours?:
+    | {
+        day:
+          | 'every-day'
+          | 'weekdays'
+          | 'weekends'
+          | 'monday'
+          | 'tuesday'
+          | 'wednesday'
+          | 'thursday'
+          | 'friday'
+          | 'saturday'
+          | 'sunday'
+          | 'public-holidays';
+        /**
+         * Leave empty for the whole space.
+         */
+        appliesTo?:
+          | (
+              | 'hot-desk'
+              | 'fixed-desk'
+              | 'cubicle-desk'
+              | 'private-office'
+              | 'meeting-room'
+              | 'conference-room'
+              | 'seminar-room'
+              | 'event-space'
+              | 'phone-booth'
+              | 'capsule'
+              | 'package'
+              | 'virtual-office'
+              | 'other'
+            )
+          | null;
+        opens?: string | null;
+        closes?: string | null;
+        open24h?: boolean | null;
+        closed?: boolean | null;
+        note?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  info?:
+    | {
+        topic:
+          | 'house-rules'
+          | 'parking'
+          | 'payment-methods'
+          | 'cancellation-policy'
+          | 'discounts-packages'
+          | 'accessibility'
+          | 'access-security'
+          | 'locations'
+          | 'pricing-notes'
+          | 'events-community'
+          | 'pets'
+          | 'food-drink-policy'
+          | 'other';
+        showOnWebsite?: boolean | null;
+        details?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * The first photo marked as cover is used on cards; otherwise the first photo.
+   */
+  photos?:
+    | {
+        image: number | Media;
+        category?:
+          | (
+              | 'hot-desk'
+              | 'fixed-desk'
+              | 'cubicle-desk'
+              | 'private-office'
+              | 'meeting-room'
+              | 'conference-room'
+              | 'event-space'
+              | 'phone-booth'
+              | 'capsule'
+              | 'common-area'
+              | 'kitchen-cafe'
+              | 'reception'
+              | 'building-exterior'
+              | 'other'
+            )
+          | null;
+        item?: string | null;
+        isCover?: boolean | null;
+        caption?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  contactPerson?: string | null;
+  internalNotes?: string | null;
+  /**
+   * Generated from the name. Used in the URL.
+   */
+  slug: string;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "amenities".
+ */
+export interface Amenity {
+  id: number;
+  name: string;
+  category:
+    | 'connectivity'
+    | 'food-drink'
+    | 'comfort'
+    | 'services'
+    | 'access-security'
+    | 'transport-parking'
+    | 'accessibility'
+    | 'other';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "media".
+ */
+export interface Media {
+  id: number;
+  /**
+   * Describe the image for screen readers and search engines.
+   */
+  alt: string;
+  sourceUrl?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    card?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    hero?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
   };
 }
 /**
@@ -190,46 +462,6 @@ export interface Post {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media".
- */
-export interface Media {
-  id: number;
-  /**
-   * Describe the image for screen readers and search engines.
-   */
-  alt: string;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-  sizes?: {
-    card?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-    hero?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-  };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
 export interface User {
@@ -283,6 +515,14 @@ export interface PayloadKv {
 export interface PayloadLockedDocument {
   id: number;
   document?:
+    | ({
+        relationTo: 'spaces';
+        value: number | Space;
+      } | null)
+    | ({
+        relationTo: 'amenities';
+        value: number | Amenity;
+      } | null)
     | ({
         relationTo: 'posts';
         value: number | Post;
@@ -339,6 +579,108 @@ export interface PayloadMigration {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "spaces_select".
+ */
+export interface SpacesSelect<T extends boolean = true> {
+  name?: T;
+  code?: T;
+  tagline?: T;
+  about?: T;
+  capacity?: T;
+  verified?: T;
+  city?: T;
+  district?: T;
+  address?: T;
+  floor?: T;
+  metro?: T;
+  landmark?: T;
+  location?: T;
+  googleMapsUrl?: T;
+  phone?: T;
+  whatsapp?: T;
+  email?: T;
+  website?: T;
+  instagram?: T;
+  facebook?: T;
+  linkedin?: T;
+  options?:
+    | T
+    | {
+        type?: T;
+        name?: T;
+        description?: T;
+        seats?: T;
+        units?: T;
+        currency?: T;
+        priceHour?: T;
+        priceEvening?: T;
+        priceDay?: T;
+        priceWeek?: T;
+        priceMonth?: T;
+        vatIncluded?: T;
+        available?: T;
+        minimumBooking?: T;
+        publicNote?: T;
+        internalNote?: T;
+        id?: T;
+      };
+  amenities?:
+    | T
+    | {
+        amenity?: T;
+        cost?: T;
+        details?: T;
+        id?: T;
+      };
+  hours?:
+    | T
+    | {
+        day?: T;
+        appliesTo?: T;
+        opens?: T;
+        closes?: T;
+        open24h?: T;
+        closed?: T;
+        note?: T;
+        id?: T;
+      };
+  info?:
+    | T
+    | {
+        topic?: T;
+        showOnWebsite?: T;
+        details?: T;
+        id?: T;
+      };
+  photos?:
+    | T
+    | {
+        image?: T;
+        category?: T;
+        item?: T;
+        isCover?: T;
+        caption?: T;
+        id?: T;
+      };
+  contactPerson?: T;
+  internalNotes?: T;
+  slug?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "amenities_select".
+ */
+export interface AmenitiesSelect<T extends boolean = true> {
+  name?: T;
+  category?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "posts_select".
  */
 export interface PostsSelect<T extends boolean = true> {
@@ -377,6 +719,7 @@ export interface PostsSelect<T extends boolean = true> {
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
+  sourceUrl?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
