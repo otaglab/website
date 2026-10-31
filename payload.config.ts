@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { postgresAdapter } from '@payloadcms/db-postgres'
@@ -17,13 +16,10 @@ import { Users } from './cms/collections/Users'
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const serverURL = process.env.NEXT_PUBLIC_SITE_URL
 
-// Production deploys require PAYLOAD_SECRET (checked in scripts/vercel-build.mjs). Anywhere else a missing
-// secret falls back so builds and preview deployments still work; CMS logins then reset on restart.
-if (!process.env.PAYLOAD_SECRET && process.env.NODE_ENV === 'production') console.warn('PAYLOAD_SECRET is not set; using a temporary secret')
-const secret = process.env.PAYLOAD_SECRET || (process.env.NODE_ENV === 'production' ? randomBytes(32).toString('hex') : 'dev-only-secret-change-me')
+if (!process.env.PAYLOAD_SECRET && process.env.NODE_ENV === 'production') throw new Error('PAYLOAD_SECRET is not set')
 
 export default buildConfig({
-  secret,
+  secret: process.env.PAYLOAD_SECRET || 'dev-only-secret-change-me',
   serverURL,
   // Only accept admin requests from our own site
   csrf: serverURL ? [serverURL] : [],
