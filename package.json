@@ -6,13 +6,11 @@
   "scripts": {
     "dev": "node scripts/copy-maplibre-worker.mjs && next dev",
     "build": "node scripts/copy-maplibre-worker.mjs && next build",
-    "vercel-build": "node scripts/vercel-build.mjs",
     "start": "next start",
     "lint": "eslint .",
     "payload": "payload",
     "cms:migrate": "payload migrate",
     "cms:migrate:create": "payload migrate:create",
-    "cms:baseline": "payload run scripts/cms-baseline.ts",
     "cms:create-admin": "payload run scripts/cms-create-admin.ts",
     "cms:types": "payload generate:types && payload generate:importmap",
     "spaces:import": "payload run scripts/spaces-import.ts",
