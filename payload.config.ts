@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { postgresAdapter } from '@payloadcms/db-postgres'
@@ -16,10 +17,13 @@ import { Users } from './cms/collections/Users'
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const serverURL = process.env.NEXT_PUBLIC_SITE_URL
 
-if (!process.env.PAYLOAD_SECRET && process.env.NODE_ENV === 'production') throw new Error('PAYLOAD_SECRET is not set')
+// Production deployments must have their own secret. Preview and local production builds fall back to a
+// random one so they still build (CMS logins then reset on restart); only `next dev` uses a fixed secret.
+if (!process.env.PAYLOAD_SECRET && process.env.VERCEL_ENV === 'production') throw new Error('PAYLOAD_SECRET is not set')
+const secret = process.env.PAYLOAD_SECRET || (process.env.NODE_ENV === 'production' ? randomBytes(32).toString('hex') : 'dev-only-secret-change-me')
 
 export default buildConfig({
-  secret: process.env.PAYLOAD_SECRET || 'dev-only-secret-change-me',
+  secret,
   serverURL,
   // Only accept admin requests from our own site
   csrf: serverURL ? [serverURL] : [],
