@@ -1,7 +1,7 @@
 import type { PayloadRequest, Where } from 'payload'
 import { getCms } from '@/lib/cms'
 import { currencySymbol, deskTypes, districts, labelOf, workspaceTypes } from '@/lib/space-options'
-import { BAKU_CENTER, distanceBetween, formatDistance, type SpaceFilters, type SpaceListing } from '@/lib/spaces'
+import { BAKU_CENTER, distanceBetween, formatDistance, type HomePhoto, type SpaceFilters, type SpaceListing } from '@/lib/spaces'
 import type { Amenity, Space, SpacePhoto } from '@/payload-types'
 
 export type { SpaceListing } from '@/lib/spaces'
@@ -103,5 +103,24 @@ export async function getSpace(slug: string, preview?: { user: PayloadRequest['u
   } catch (error) {
     console.error('Failed to load space', error)
     return null
+  }
+}
+
+// Photos of published spaces, for the homepage's random images
+export async function getHomePhotos(limit = 60): Promise<HomePhoto[]> {
+  if (!process.env.DATABASE_URL) return []
+  try {
+    const payload = await getCms()
+    const spaces = await payload.find({ collection: 'spaces', limit: 200, depth: 0, overrideAccess: false, select: { slug: true, name: true } })
+    if (!spaces.docs.length) return []
+    const bySpace = new Map(spaces.docs.map((space) => [space.id, space]))
+    const { docs } = await payload.find({ collection: 'space-photos', where: { space: { in: [...bySpace.keys()] } }, limit, depth: 0, sort: 'sortOrder', overrideAccess: false })
+    return docs.filter((photo) => photo.url).map((photo) => {
+      const space = bySpace.get(photo.space as number)
+      return { src: photo.sizes?.hero?.url ?? photo.url!, alt: photo.alt, name: space?.name ?? '', slug: space?.slug ?? '' }
+    })
+  } catch (error) {
+    console.error('Failed to load homepage photos', error)
+    return []
   }
 }

@@ -5,9 +5,31 @@ import { ChevronLeft, ChevronRight, Images, X } from 'lucide-react'
 
 export type GalleryPhoto = { id: number; src: string; thumb: string; card: string; hero: string; alt: string; caption: string; category: string; categoryLabel: string }
 
+type PhotoFilter = { ids: number[]; label: string }
+const openEvent = 'space-gallery:open'
+
+// Clickable wrapper (e.g. a workspace option) that opens the gallery on the given photos
+export function PhotoTrigger({ ids, label, className, children }: PhotoFilter & { className?: string; children: React.ReactNode }) {
+  const open = () => window.dispatchEvent(new CustomEvent<PhotoFilter>(openEvent, { detail: { ids, label } }))
+  return <div role="button" tabIndex={0} aria-label={`View photos of ${label}`} onClick={open} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open() } }} className={`cursor-pointer ${className ?? ''}`}>{children}</div>
+}
+
 // Grid on the page, full-screen viewer with category tabs on click
 export function SpaceGallery({ photos, name }: { photos: GalleryPhoto[]; name: string }) {
   const [open, setOpen] = useState<number | null>(null)
+  const [filter, setFilter] = useState<PhotoFilter | null>(null)
+
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const detail = (event as CustomEvent<PhotoFilter>).detail
+      setFilter(detail)
+      setOpen(0)
+    }
+    window.addEventListener(openEvent, onOpen)
+    return () => window.removeEventListener(openEvent, onOpen)
+  }, [])
+
+  const openAt = (index: number) => { setFilter(null); setOpen(index) }
 
   if (!photos.length) return <div className="grid h-[260px] place-items-center rounded-2xl bg-[var(--light-blue)] text-sm text-[var(--muted-text)]">Photos coming soon</div>
 
@@ -15,22 +37,23 @@ export function SpaceGallery({ photos, name }: { photos: GalleryPhoto[]; name: s
   const side = rest.slice(0, 4)
   return <>
     <div className={`relative grid h-[300px] gap-2 overflow-hidden rounded-2xl sm:h-[440px] ${side.length ? 'sm:grid-cols-[1.4fr_1fr]' : ''}`}>
-      <button type="button" onClick={() => setOpen(0)} className="group relative overflow-hidden" aria-label={`Open photo 1 of ${photos.length}`}>
+      <button type="button" onClick={() => openAt(0)} className="group relative overflow-hidden" aria-label={`Open photo 1 of ${photos.length}`}>
         <img src={cover.hero} alt={cover.alt} className="size-full object-cover transition duration-300 group-hover:scale-[1.02]" />
       </button>
       {side.length > 0 && <div className={`hidden gap-2 sm:grid ${side.length > 1 ? 'grid-cols-2' : ''} ${side.length > 2 ? 'grid-rows-2' : ''}`}>
-        {side.map((photo, index) => <button type="button" key={photo.id} onClick={() => setOpen(index + 1)} className={`group relative overflow-hidden ${side.length === 3 && index === 0 ? 'row-span-2' : ''}`} aria-label={`Open photo ${index + 2} of ${photos.length}`}>
+        {side.map((photo, index) => <button type="button" key={photo.id} onClick={() => openAt(index + 1)} className={`group relative overflow-hidden ${side.length === 3 && index === 0 ? 'row-span-2' : ''}`} aria-label={`Open photo ${index + 2} of ${photos.length}`}>
           <img src={photo.card} alt={photo.alt} className="size-full object-cover transition duration-300 group-hover:scale-[1.03]" />
         </button>)}
       </div>}
-      {photos.length > 1 && <button type="button" onClick={() => setOpen(0)} className="absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-bold text-[var(--navy)] shadow-md"><Images className="size-4" />Show all {photos.length} photos</button>}
+      {photos.length > 1 && <button type="button" onClick={() => openAt(0)} className="absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-bold text-[var(--navy)] shadow-md"><Images className="size-4" />Show all {photos.length} photos</button>}
     </div>
-    {open !== null && <Viewer photos={photos} start={open} name={name} onClose={() => setOpen(null)} />}
+    {open !== null && <Viewer photos={photos} start={open} filter={filter} name={name} onClose={() => setOpen(null)} />}
   </>
 }
 
-function Viewer({ photos, start, name, onClose }: { photos: GalleryPhoto[]; start: number; name: string; onClose: () => void }) {
-  const [category, setCategory] = useState('all')
+function Viewer({ photos, start, filter, name, onClose }: { photos: GalleryPhoto[]; start: number; filter: PhotoFilter | null; name: string; onClose: () => void }) {
+  // Opened from a workspace option: start on a tab with just that option's photos
+  const [category, setCategory] = useState(filter ? 'option' : 'all')
   const [index, setIndex] = useState(start)
   const closeRef = useRef<HTMLButtonElement>(null)
   const touchX = useRef<number | null>(null)
@@ -40,7 +63,8 @@ function Viewer({ photos, start, name, onClose }: { photos: GalleryPhoto[]; star
     for (const photo of photos) if (photo.category) seen.set(photo.category, { label: photo.categoryLabel, count: (seen.get(photo.category)?.count ?? 0) + 1 })
     return [...seen.entries()]
   }, [photos])
-  const shown = category === 'all' ? photos : photos.filter((photo) => photo.category === category)
+  const optionPhotos = useMemo(() => (filter ? filter.ids.map((id) => photos.find((photo) => photo.id === id)).filter((photo): photo is GalleryPhoto => Boolean(photo)) : []), [filter, photos])
+  const shown = category === 'option' ? optionPhotos : category === 'all' ? photos : photos.filter((photo) => photo.category === category)
   const current = shown[Math.min(index, shown.length - 1)]
   const step = useCallback((delta: number) => setIndex((value) => (value + delta + shown.length) % shown.length), [shown.length])
 
@@ -68,7 +92,7 @@ function Viewer({ photos, start, name, onClose }: { photos: GalleryPhoto[]; star
   return <div role="dialog" aria-modal="true" aria-label={`${name} photos`} className="fixed inset-0 z-[60] flex flex-col bg-[#0b1724]/95 text-white">
     <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
       <p className="hidden min-w-0 flex-1 truncate text-sm font-semibold sm:block">{name}</p>
-      <div className="flex flex-1 gap-2 overflow-x-auto sm:flex-none">{categories.length > 1 && [tab('all', 'All', photos.length), ...categories.map(([value, { label, count }]) => tab(value, label, count))]}</div>
+      <div className="flex flex-1 gap-2 overflow-x-auto sm:flex-none">{filter && optionPhotos.length > 0 && tab('option', filter.label, optionPhotos.length)}{(categories.length > 1 || filter) && [tab('all', 'All photos', photos.length), ...(categories.length > 1 ? categories.map(([value, { label, count }]) => tab(value, label, count)) : [])]}</div>
       <span className="shrink-0 text-xs text-white/70">{Math.min(index, shown.length - 1) + 1} / {shown.length}</span>
       <button ref={closeRef} type="button" onClick={onClose} aria-label="Close gallery" className="grid size-10 shrink-0 place-items-center rounded-full bg-white/10 hover:bg-white/20"><X className="size-5" /></button>
     </div>

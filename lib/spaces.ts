@@ -2,6 +2,9 @@
 
 export type SpaceListing = { slug: string; name: string; district: string; distance: string; price: string; priceUnit: string; types: string; amenities: string; status: string; image: string; verified: boolean; lat: number | null; lng: number | null }
 
+// A real space photo for the homepage's random images
+export type HomePhoto = { src: string; alt: string; name: string; slug: string }
+
 export type LatLng = { lat: number; lng: number }
 export type MapBounds = { west: number; south: number; east: number; north: number }
 export type SpaceFilters = { district?: string; query?: string; type?: string; near?: LatLng; bounds?: MapBounds }
