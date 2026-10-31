@@ -1,0 +1,12 @@
+overrides:
+  hono: 4.12.25
+
+minimumReleaseAgeExclude:
+  - tabbable@6.5.1
+  - unist-util-visit-parents@6.1.0
+  - unist-util-visit@5.2.0
+  - xss@1.0.17
+
+allowBuilds:
+  esbuild: set this to true or false
+  msw: set this to true or false
