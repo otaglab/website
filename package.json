@@ -13,7 +13,8 @@
     "cms:migrate:create": "payload migrate:create",
     "cms:create-admin": "payload run scripts/cms-create-admin.ts",
     "cms:types": "payload generate:types && payload generate:importmap",
-    "spaces:import": "payload run scripts/spaces-import.ts"
+    "spaces:import": "payload run scripts/spaces-import.ts",
+    "google:auth": "node --env-file-if-exists=.env.local scripts/google-auth.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1156.0",

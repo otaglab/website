@@ -1,11 +1,12 @@
 import { Accessibility, Car, Check, Clock3, Coffee, ExternalLink, Globe, Mail, MapPin, MessageCircle, Phone, ShieldCheck, Sofa, Sparkles, TrainFront, Users, Wifi } from 'lucide-react'
 import { Breadcrumbs, PageShell, SectionTitle, SimilarSpaces } from '@/components/otaglab'
 import { SpaceBooking } from '@/components/space-booking'
+import { SpaceGallery, type GalleryPhoto } from '@/components/space-gallery'
 import { SpaceMap } from '@/components/space-map'
-import { coverPhoto, toListing } from '@/lib/coworking'
-import { amenityCategories, currencySymbol, days, infoTopics, labelOf, roomTypes, workspaceTypes } from '@/lib/space-options'
+import { galleryPhotos, toListing } from '@/lib/coworking'
+import { amenityCategories, currencySymbol, days, infoTopics, labelOf, photoCategories, roomTypes, workspaceTypes } from '@/lib/space-options'
 import type { SpaceListing } from '@/lib/spaces'
-import type { Amenity, Media, Space } from '@/payload-types'
+import type { Amenity, Space } from '@/payload-types'
 
 type SpaceOption = NonNullable<Space['options']>[number]
 
@@ -23,14 +24,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return <section><h2 className="mb-5 text-2xl font-bold text-[var(--navy)]">{title}</h2>{children}</section>
 }
 
-function Gallery({ space }: { space: Space }) {
-  const cover = coverPhoto(space)
-  const rest = (space.photos ?? []).map((photo) => photo.image).filter((image): image is Media => typeof image === 'object' && image !== null && image.id !== cover?.id).slice(0, 4)
-  if (!cover) return <div className="grid h-[260px] place-items-center rounded-2xl bg-[var(--light-blue)] text-sm text-[var(--muted-text)]">Photos coming soon</div>
-  return <div className={`grid h-[300px] gap-2 overflow-hidden rounded-2xl sm:h-[420px] ${rest.length ? 'sm:grid-cols-[1.4fr_1fr]' : ''}`}>
-    <img src={cover.sizes?.hero?.url ?? cover.url ?? ''} alt={cover.alt} className="size-full object-cover" />
-    {rest.length > 0 && <div className="hidden grid-cols-2 gap-2 sm:grid">{rest.map((image) => <img key={image.id} src={image.sizes?.card?.url ?? image.url ?? ''} alt={image.alt} className={`size-full object-cover ${rest.length < 3 ? 'col-span-2' : ''}`} />)}</div>}
-  </div>
+// Only the fields the gallery needs are sent to the browser
+function toGalleryPhotos(space: Space): GalleryPhoto[] {
+  return galleryPhotos(space).filter((photo) => photo.url).map((photo) => ({
+    id: photo.id,
+    src: photo.url!,
+    thumb: photo.sizes?.thumb?.url ?? photo.url!,
+    card: photo.sizes?.card?.url ?? photo.url!,
+    hero: photo.sizes?.hero?.url ?? photo.url!,
+    alt: photo.alt,
+    caption: photo.caption ?? '',
+    category: photo.category ?? '',
+    categoryLabel: labelOf(photoCategories, photo.category),
+  }))
 }
 
 function PriceChips({ option }: { option: SpaceOption }) {
@@ -107,7 +113,7 @@ export function SpaceDetail({ space, similar, preview }: { space: Space; similar
           <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--muted-text)]"><span className="flex items-center gap-1.5"><MapPin className="size-4 text-[var(--teal)]" />{[listing.district, space.address].filter(Boolean).join(' · ')}</span>{space.metro && <span className="flex items-center gap-1.5"><TrainFront className="size-4 text-[var(--teal)]" />{space.metro} metro</span>}{listing.status && <span className="flex items-center gap-1.5"><Clock3 className="size-4 text-[var(--teal)]" />{listing.status}</span>}</p></div>
         {space.verified && <span className="flex w-fit items-center gap-1.5 rounded-full bg-[var(--light-teal)] px-3 py-1.5 text-xs font-bold text-[var(--dark-teal)]"><ShieldCheck className="size-4" />Verified by OtagLab</span>}
       </div>
-      <div className="mt-6"><Gallery space={space} /></div>
+      <div className="mt-6"><SpaceGallery photos={toGalleryPhotos(space)} name={space.name} /></div>
       <div className="mt-10 grid gap-10 lg:grid-cols-[1.6fr_.8fr]">
         <div className="flex flex-col gap-12">
           <Section title="About this workspace"><p className="max-w-3xl whitespace-pre-line text-base leading-7 text-[var(--text)]">{space.about}</p>{space.capacity ? <p className="mt-3 text-sm text-[var(--muted-text)]">{space.capacity} seats in total</p> : null}</Section>

@@ -2,18 +2,19 @@ import type { PayloadRequest, Where } from 'payload'
 import { getCms } from '@/lib/cms'
 import { currencySymbol, deskTypes, districts, labelOf, workspaceTypes } from '@/lib/space-options'
 import { BAKU_CENTER, distanceBetween, formatDistance, type SpaceFilters, type SpaceListing } from '@/lib/spaces'
-import type { Amenity, Media, Space } from '@/payload-types'
+import type { Amenity, Space, SpacePhoto } from '@/payload-types'
 
 export type { SpaceListing } from '@/lib/spaces'
 
 type SpaceOption = NonNullable<Space['options']>[number]
 
-const asMedia = (value: number | Media | null | undefined) => (typeof value === 'object' && value ? value : null)
-
-export function coverPhoto(space: Pick<Space, 'photos'>) {
-  const photos = space.photos ?? []
-  return asMedia((photos.find((photo) => photo.isCover) ?? photos[0])?.image)
+// Gallery photos in display order: cover photo first, then by their order number
+export function galleryPhotos(space: Pick<Space, 'gallery'>): SpacePhoto[] {
+  const photos = (space.gallery?.docs ?? []).filter((photo): photo is SpacePhoto => typeof photo === 'object' && photo !== null)
+  return photos.sort((a, b) => Number(Boolean(b.isCover)) - Number(Boolean(a.isCover)) || (a.sortOrder ?? 100) - (b.sortOrder ?? 100))
 }
+
+export const coverPhoto = (space: Pick<Space, 'gallery'>) => galleryPhotos(space)[0] ?? null
 
 // Cheapest daily desk price, falling back to any daily, hourly or monthly price
 export function priceFrom(options: SpaceOption[] | null | undefined) {
@@ -80,7 +81,7 @@ export async function getCoworkingSpaces(filters: SpaceFilters = {}): Promise<Sp
       conditions.push({ location: { within: { type: 'Polygon', coordinates: [[[west, south], [east, south], [east, north], [west, north], [west, south]]] } } })
     }
     const payload = await getCms()
-    const { docs } = await payload.find({ collection: 'spaces', where: conditions.length ? { and: conditions } : {}, sort: 'name', limit: 200, depth: 2, overrideAccess: false })
+    const { docs } = await payload.find({ collection: 'spaces', where: conditions.length ? { and: conditions } : {}, sort: 'name', limit: 200, depth: 2, overrideAccess: false, joins: { gallery: { limit: 20 } } })
     const origin = filters.near ?? BAKU_CENTER
     const listings = docs.map((space) => toListing(space, origin))
     if (!filters.near) return listings
@@ -97,7 +98,7 @@ export async function getSpace(slug: string, preview?: { user: PayloadRequest['u
   if (!process.env.DATABASE_URL) return null
   try {
     const payload = await getCms()
-    const { docs } = await payload.find({ collection: 'spaces', where: { slug: { equals: slug } }, limit: 1, depth: 2, overrideAccess: false, ...(preview ? { draft: true, user: preview.user } : {}) })
+    const { docs } = await payload.find({ collection: 'spaces', where: { slug: { equals: slug } }, limit: 1, depth: 2, overrideAccess: false, joins: { gallery: { limit: 200 } }, ...(preview ? { draft: true, user: preview.user } : {}) })
     return docs[0] ?? null
   } catch (error) {
     console.error('Failed to load space', error)

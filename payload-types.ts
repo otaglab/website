@@ -68,6 +68,7 @@ export interface Config {
   blocks: {};
   collections: {
     spaces: Space;
+    'space-photos': SpacePhoto;
     amenities: Amenity;
     posts: Post;
     media: Media;
@@ -77,9 +78,14 @@ export interface Config {
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {};
+  collectionsJoins: {
+    spaces: {
+      gallery: 'space-photos';
+    };
+  };
   collectionsSelect: {
     spaces: SpacesSelect<false> | SpacesSelect<true>;
+    'space-photos': SpacePhotosSelect<false> | SpacePhotosSelect<true>;
     amenities: AmenitiesSelect<false> | AmenitiesSelect<true>;
     posts: PostsSelect<false> | PostsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
@@ -292,35 +298,17 @@ export interface Space {
       }[]
     | null;
   /**
-   * The first photo marked as cover is used on cards; otherwise the first photo.
+   * Folder in the photo bucket, e.g. lotfi-zadeh. Defaults to the page URL name. Changing it later does not move existing photos.
    */
-  photos?:
-    | {
-        image: number | Media;
-        category?:
-          | (
-              | 'hot-desk'
-              | 'fixed-desk'
-              | 'cubicle-desk'
-              | 'private-office'
-              | 'meeting-room'
-              | 'conference-room'
-              | 'event-space'
-              | 'phone-booth'
-              | 'capsule'
-              | 'common-area'
-              | 'kitchen-cafe'
-              | 'reception'
-              | 'building-exterior'
-              | 'other'
-            )
-          | null;
-        item?: string | null;
-        isCover?: boolean | null;
-        caption?: string | null;
-        id?: string | null;
-      }[]
-    | null;
+  storageFolder?: string | null;
+  /**
+   * Add photos from Spaces → Space photos. The cover photo comes first, then by order.
+   */
+  gallery?: {
+    docs?: (number | SpacePhoto)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   contactPerson?: string | null;
   internalNotes?: string | null;
   /**
@@ -352,15 +340,49 @@ export interface Amenity {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media".
+ * via the `definition` "space-photos".
  */
-export interface Media {
+export interface SpacePhoto {
   id: number;
+  space: number | Space;
+  category?:
+    | (
+        | 'hot-desk'
+        | 'fixed-desk'
+        | 'cubicle-desk'
+        | 'private-office'
+        | 'meeting-room'
+        | 'conference-room'
+        | 'event-space'
+        | 'phone-booth'
+        | 'capsule'
+        | 'common-area'
+        | 'kitchen-cafe'
+        | 'reception'
+        | 'building-exterior'
+        | 'other'
+      )
+    | null;
   /**
-   * Describe the image for screen readers and search engines.
+   * e.g. a meeting room name
+   */
+  item?: string | null;
+  caption?: string | null;
+  /**
+   * Shown first and on cards.
+   */
+  isCover?: boolean | null;
+  /**
+   * Lower numbers come first.
+   */
+  sortOrder?: number | null;
+  /**
+   * Filled in automatically if left empty.
    */
   alt: string;
   sourceUrl?: string | null;
+  prefix?: string | null;
+  _objectKey?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -373,6 +395,14 @@ export interface Media {
   focalX?: number | null;
   focalY?: number | null;
   sizes?: {
+    thumb?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
     card?: {
       url?: string | null;
       width?: number | null;
@@ -462,6 +492,49 @@ export interface Post {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "media".
+ */
+export interface Media {
+  id: number;
+  /**
+   * Describe the image for screen readers and search engines.
+   */
+  alt: string;
+  sourceUrl?: string | null;
+  prefix?: string | null;
+  _objectKey?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    card?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    hero?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
 export interface User {
@@ -518,6 +591,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'spaces';
         value: number | Space;
+      } | null)
+    | ({
+        relationTo: 'space-photos';
+        value: number | SpacePhoto;
       } | null)
     | ({
         relationTo: 'amenities';
@@ -652,22 +729,75 @@ export interface SpacesSelect<T extends boolean = true> {
         details?: T;
         id?: T;
       };
-  photos?:
-    | T
-    | {
-        image?: T;
-        category?: T;
-        item?: T;
-        isCover?: T;
-        caption?: T;
-        id?: T;
-      };
+  storageFolder?: T;
+  gallery?: T;
   contactPerson?: T;
   internalNotes?: T;
   slug?: T;
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "space-photos_select".
+ */
+export interface SpacePhotosSelect<T extends boolean = true> {
+  space?: T;
+  category?: T;
+  item?: T;
+  caption?: T;
+  isCover?: T;
+  sortOrder?: T;
+  alt?: T;
+  sourceUrl?: T;
+  prefix?: T;
+  _objectKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumb?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        card?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        hero?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -720,6 +850,8 @@ export interface PostsSelect<T extends boolean = true> {
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   sourceUrl?: T;
+  prefix?: T;
+  _objectKey?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

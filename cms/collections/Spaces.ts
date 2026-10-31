@@ -1,7 +1,7 @@
 import { revalidatePath } from 'next/cache'
 import type { CollectionAfterChangeHook, CollectionAfterDeleteHook, CollectionConfig, FieldAccess } from 'payload'
 import { slugify } from '@/lib/insights'
-import { currencies, days, districts, infoTopics, photoCategories, workspaceTypes } from '@/lib/space-options'
+import { currencies, days, districts, infoTopics, workspaceTypes } from '@/lib/space-options'
 import { isAdmin, isEditorOrAdmin } from '../access'
 
 // Internal fields are hidden from visitors and the public API
@@ -156,14 +156,21 @@ export const Spaces: CollectionConfig = {
           label: 'Photos',
           fields: [
             {
-              name: 'photos',
-              type: 'array',
-              admin: { description: 'The first photo marked as cover is used on cards; otherwise the first photo.' },
-              fields: [
-                { type: 'row', fields: [{ name: 'image', type: 'upload', relationTo: 'media', required: true }, { name: 'category', type: 'select', options: photoCategories }] },
-                { type: 'row', fields: [{ name: 'item', label: 'Specific item', type: 'text' }, { name: 'isCover', label: 'Cover photo', type: 'checkbox' }] },
-                { name: 'caption', type: 'text', localized: true },
-              ],
+              name: 'storageFolder',
+              type: 'text',
+              unique: true,
+              validate: (value: string | null | undefined) => !value || /^[a-z0-9][a-z0-9-]*$/.test(value) || 'Use lowercase letters, numbers and dashes',
+              admin: { description: 'Folder in the photo bucket, e.g. lotfi-zadeh. Defaults to the page URL name. Changing it later does not move existing photos.' },
+              hooks: { beforeValidate: [({ value, data }) => value || slugify(data?.slug || data?.name || '')] },
+            },
+            {
+              name: 'gallery',
+              type: 'join',
+              collection: 'space-photos',
+              on: 'space',
+              defaultSort: 'sortOrder',
+              defaultLimit: 100,
+              admin: { description: 'Add photos from Spaces → Space photos. The cover photo comes first, then by order.', defaultColumns: ['filename', 'category', 'isCover', 'sortOrder'] },
             },
           ],
         },

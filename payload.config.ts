@@ -9,6 +9,7 @@ import sharp from 'sharp'
 import { Amenities } from './cms/collections/Amenities'
 import { Media } from './cms/collections/Media'
 import { Posts } from './cms/collections/Posts'
+import { SpacePhotos } from './cms/collections/SpacePhotos'
 import { Spaces } from './cms/collections/Spaces'
 import { Users } from './cms/collections/Users'
 
@@ -29,7 +30,7 @@ export default buildConfig({
     meta: { titleSuffix: ' · OtagLab CMS' },
     importMap: { baseDir: dirname },
   },
-  collections: [Spaces, Amenities, Posts, Media, Users],
+  collections: [Spaces, SpacePhotos, Amenities, Posts, Media, Users],
   // Space texts are stored in all three languages; the site shows English until /az and /ru exist
   localization: {
     locales: [
@@ -56,16 +57,22 @@ export default buildConfig({
     ? resendAdapter({ apiKey: process.env.RESEND_API_KEY, defaultFromAddress: `cms@${process.env.RESEND_EMAIL_DOMAIN || 'otaglab.com'}`, defaultFromName: 'OtagLab CMS' })
     : undefined,
   plugins: [
-    // Images go to S3 when it's configured; otherwise they're stored on disk (local development)
+    // Images go to Neon object storage when it's configured; otherwise they're stored on disk (local development)
     s3Storage({
-      enabled: Boolean(process.env.NEON_S3_BUCKET),
-      collections: { media: { prefix: 'media' } },
-      bucket: process.env.NEON_S3_BUCKET || '',
+      enabled: Boolean(process.env.S3_BUCKET && process.env.AWS_ENDPOINT_URL_S3),
+      collections: {
+        media: { prefix: 'media' },
+        // The bucket is public: space photos load straight from it, one folder per space
+        'space-photos': { disablePayloadAccessControl: true },
+      },
+      bucket: process.env.S3_BUCKET || '',
+      // Same database columns whether or not storage is configured
+      alwaysInsertFields: true,
       config: {
-        region: process.env.NEON_S3_REGION ?? 'auto',
-        endpoint: process.env.NEON_S3_ENDPOINT,
+        region: process.env.AWS_REGION ?? 'auto',
+        endpoint: process.env.AWS_ENDPOINT_URL_S3,
         forcePathStyle: true,
-        credentials: { accessKeyId: process.env.NEON_S3_ACCESS_KEY_ID || '', secretAccessKey: process.env.NEON_S3_SECRET_ACCESS_KEY || '' },
+        credentials: { accessKeyId: process.env.AWS_ACCESS_KEY_ID || '', secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '' },
       },
     }),
   ],

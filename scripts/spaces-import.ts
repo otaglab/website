@@ -1,10 +1,13 @@
 // Imports coworking spaces from the operators spreadsheet into the CMS.
-// Usage: pnpm spaces:import "<path to .xlsx>"
-// Safe to re-run: spaces are matched by Space ID (BAK-001…), photos by their Drive link, amenities by name.
+// Usage: pnpm spaces:import "<path to .xlsx>" [--folders BAK-001=lotfi-zadeh,BAK-002=city-global]
+// Safe to re-run: spaces are matched by Space ID (BAK-001…), photos by their Drive file, amenities by name.
+// Photos are read with the Google sign-in from `pnpm google:auth` when it's set up, otherwise from public links.
 import config from '@payload-config'
 import ExcelJS from 'exceljs'
 import { getPayload } from 'payload'
 import sharp from 'sharp'
+import { driveConfigured, driveDownload, driveFileInfo, driveFolderImages, parseDriveLink } from '@/lib/google-drive'
+import { slugify } from '@/lib/insights'
 import { amenityCategories, days, districts, infoTopics, photoCategories, workspaceTypes } from '@/lib/space-options'
 
 type Row = Record<string, string>
@@ -12,9 +15,12 @@ type Option = { value: string; label: string }
 
 const file = process.argv[2]
 if (!file) {
-  console.error('Usage: pnpm spaces:import "<path to .xlsx>"')
+  console.error('Usage: pnpm spaces:import "<path to .xlsx>" [--folders BAK-001=lotfi-zadeh,BAK-002=city-global]')
   process.exit(1)
 }
+// Storage folder per Space ID, for folders that already exist in the bucket
+const folderArg = process.argv[process.argv.indexOf('--folders') + 1]
+const folderFor = new Map(process.argv.includes('--folders') && folderArg ? folderArg.split(',').map((pair) => pair.split('=').map((part) => part.trim()) as [string, string]) : [])
 
 const warnings = new Map<string, string[]>()
 const warn = (code: string, message: string) => warnings.set(code, [...(warnings.get(code) ?? []), message])
@@ -123,19 +129,39 @@ async function amenityId(name: string, categoryLabel: string) {
   return (await payload.create({ collection: 'amenities', data: { name, category: category as never }, locale: 'en' })).id
 }
 
-async function photoId(code: string, link: string, alt: string) {
-  const existing = await payload.find({ collection: 'media', where: { sourceUrl: { equals: link } }, limit: 1 })
-  if (existing.docs[0]) return existing.docs[0].id
-  if (/\/folders\//.test(link)) return warn(code, `Photo folder link skipped (use links to single photos): ${link}`), null
-  const id = link.match(/\/file\/d\/([\w-]+)/)?.[1] ?? link.match(/[?&]id=([\w-]+)/)?.[1]
-  if (!id) return warn(code, `Not a Google Drive file link: ${link}`), null
-  const res = await fetch(`https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`)
-  const type = res.headers.get('content-type') ?? ''
-  if (!res.ok || !type.startsWith('image/')) return warn(code, `Could not download photo (is it shared "Anyone with the link"?): ${link}`), null
-  // Resize to keep uploads small and strip camera metadata
-  const data = await sharp(Buffer.from(await res.arrayBuffer())).rotate().resize({ width: 2400, withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer()
-  const doc = await payload.create({ collection: 'media', data: { alt, sourceUrl: link }, file: { data, mimetype: 'image/jpeg', name: `${code.toLowerCase()}-${id.slice(0, 8)}.jpg`, size: data.length } })
-  return doc.id
+type PhotoFile = { id: string; sourceUrl: string; load: () => Promise<Buffer> }
+
+// The photo files behind one sheet row: a single Drive file, or every image in a Drive folder
+async function drivePhotos(code: string, link: string): Promise<PhotoFile[]> {
+  const parsed = parseDriveLink(link)
+  if (!parsed) return warn(code, `Not a Google Drive link: ${link}`), []
+  const fromDrive = (id: string): PhotoFile => ({ id, sourceUrl: `https://drive.google.com/file/d/${id}/view`, load: () => driveDownload(id) })
+  if (driveConfigured()) {
+    try {
+      if (parsed.kind === 'file') return [fromDrive((await driveFileInfo(parsed.id)).id)]
+      const images = await driveFolderImages(parsed.id)
+      if (!images.length) warn(code, `Folder has no images: ${link}`)
+      return images.map((image) => fromDrive(image.id))
+    } catch (error) {
+      return warn(code, `Could not read from Google Drive (${(error as Error).message.slice(0, 120)}): ${link}`), []
+    }
+  }
+  // Without sign-in, files and folders must be shared "Anyone with the link"
+  const fromPublicLink = (id: string): PhotoFile => ({
+    id,
+    sourceUrl: `https://drive.google.com/file/d/${id}/view`,
+    load: async () => {
+      const res = await fetch(`https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`)
+      if (!res.ok || !(res.headers.get('content-type') ?? '').startsWith('image/')) throw new Error('not a shared image: share it "Anyone with the link" or run pnpm google:auth')
+      return Buffer.from(await res.arrayBuffer())
+    },
+  })
+  if (parsed.kind === 'file') return [fromPublicLink(parsed.id)]
+  // Google's public folder page lists the files of a shared folder
+  const res = await fetch(`https://drive.google.com/embeddedfolderview?id=${parsed.id}`)
+  const ids = res.ok ? [...new Set([...(await res.text()).matchAll(/\/file\/d\/([\w-]{20,})/g)].map((match) => match[1]))] : []
+  if (!ids.length) warn(code, `Folder is empty or not shared "Anyone with the link": ${link}`)
+  return ids.map(fromPublicLink)
 }
 
 let imported = 0
@@ -190,17 +216,9 @@ for (const row of spaces) {
   const infos = forSpace(infoRows, code).filter((info) => info['Details (EN)'])
   const info = infos.map((item) => ({ topic: (pick(infoTopics, item['Topic']) ?? 'other') as never, details: item['Details (EN)'], showOnWebsite: !no(item['Show on website']) }))
 
-  const photos = []
-  for (const photo of forSpace(photoRows, code)) {
-    const link = photo['Google Drive link']
-    if (!link) { warn(code, `Photo row "${photo['Photo of']} ${photo['Specific item']}" has no link`); continue }
-    const image = await photoId(code, link, [name, photo['Specific item'] || photo['Photo of']].filter(Boolean).join(' — '))
-    if (!image) continue
-    const item = photo['Specific item']
-    const category = norm(photo['Photo of']) === 'desks' ? (/stable|fixed|dedicated/i.test(item) ? 'fixed-desk' : 'hot-desk') : pick(photoCategories, photo['Photo of'], { capsules: 'capsule', 'common area': 'common-area' })
-    photos.push({ image, category: (category ?? 'other') as never, item: item || undefined, isCover: yes(photo['Cover photo']), caption: photo['Caption (EN)'] || undefined })
-  }
-  if (!photos.length) warn(code, 'No photos imported')
+  const existing = await payload.find({ collection: 'spaces', where: { code: { equals: code } }, limit: 1, draft: true, locale: 'en' })
+  // Never change a folder once set: photos already live there
+  const storageFolder = existing.docs[0]?.storageFolder || folderFor.get(code) || row['Storage folder'] || undefined
 
   const email = row['Email']?.trim()
   if (!email) warn(code, 'No email — booking requests only reach OtagLab')
@@ -234,14 +252,13 @@ for (const row of spaces) {
     amenities,
     hours,
     info,
-    photos,
+    storageFolder,
     contactPerson: row['Contact person'] || undefined,
     internalNotes: row['Internal notes (not published)'] || undefined,
     // Everything except paused spaces goes live straight away
     _status: (norm(row['Status']) === 'paused' ? 'draft' : 'published') as 'draft' | 'published',
   }
 
-  const existing = await payload.find({ collection: 'spaces', where: { code: { equals: code } }, limit: 1, draft: true, locale: 'en' })
   const saved = existing.docs[0]
     ? await payload.update({ collection: 'spaces', id: existing.docs[0].id, data, locale: 'en' })
     : await payload.create({ collection: 'spaces', data, locale: 'en' })
@@ -261,8 +278,34 @@ for (const row of spaces) {
     })
   }
 
+  // Photos: one Space photos row each, stored in the space's bucket folder
+  let photoCount = 0
+  for (const [rowIndex, photo] of forSpace(photoRows, code).entries()) {
+    const link = photo['Google Drive link']
+    if (!link) { warn(code, `Photo row "${photo['Photo of']} ${photo['Specific item']}" has no link`); continue }
+    const item = photo['Specific item']
+    const category = norm(photo['Photo of']) === 'desks' ? (/stable|fixed|dedicated/i.test(item) ? 'fixed-desk' : 'hot-desk') : pick(photoCategories, photo['Photo of'], { capsules: 'capsule', 'common area': 'common-area' })
+    for (const [fileIndex, photoFile] of (await drivePhotos(code, link)).entries()) {
+      const already = await payload.find({ collection: 'space-photos', where: { sourceUrl: { equals: photoFile.sourceUrl } }, limit: 1 })
+      if (already.docs[0]) { photoCount++; continue }
+      try {
+        // Resize and strip camera metadata before upload
+        const image = await sharp(await photoFile.load()).rotate().resize({ width: 2400, height: 2400, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer()
+        await payload.create({
+          collection: 'space-photos',
+          data: { space: saved.id, category: (category ?? 'other') as never, item: item || undefined, caption: photo['Caption (EN)'] || undefined, isCover: yes(photo['Cover photo']) && fileIndex === 0, sortOrder: (num(photo['Order']) ?? rowIndex + 1) * 10 + fileIndex, sourceUrl: photoFile.sourceUrl, alt: '' },
+          file: { data: image, mimetype: 'image/jpeg', name: `${slugify(item || photo['Photo of'] || 'photo') || 'photo'}-${photoFile.id.slice(0, 6).toLowerCase()}.jpg`, size: image.length },
+        })
+        photoCount++
+      } catch (error) {
+        warn(code, `Could not import photo (${(error as Error).message.slice(0, 120)}): ${link}`)
+      }
+    }
+  }
+  if (!photoCount) warn(code, 'No photos imported')
+
   imported++
-  console.log(`  ${existing.docs[0] ? 'updated' : 'created'} /spaces/${saved.slug} (${data._status}) — ${options.length} options, ${amenities.length} amenities, ${hours.length} hours, ${photos.length} photos`)
+  console.log(`  ${existing.docs[0] ? 'updated' : 'created'} /spaces/${saved.slug} (${data._status}) in folder "${saved.storageFolder}" — ${options.length} options, ${amenities.length} amenities, ${hours.length} hours, ${photoCount} photos`)
 }
 
 console.log(`\nImported ${imported} spaces.`)
