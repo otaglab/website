@@ -20,5 +20,9 @@ export const Media: CollectionConfig = {
       { name: 'hero', width: 1600 },
     ],
   },
-  fields: [{ name: 'alt', type: 'text', required: true, admin: { description: 'Describe the image for screen readers and search engines.' } }],
+  fields: [
+    { name: 'alt', type: 'text', required: true, admin: { description: 'Describe the image for screen readers and search engines.' } },
+    // Where an imported photo came from, so re-running the import doesn't upload it twice
+    { name: 'sourceUrl', type: 'text', index: true, admin: { readOnly: true, position: 'sidebar' } },
+  ],
 }
