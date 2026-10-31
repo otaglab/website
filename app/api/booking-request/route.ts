@@ -21,6 +21,8 @@ function throttled(ip: string) {
 const text = (value: unknown, max: number) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
 
 export async function POST(request: Request) {
+  // Online booking isn't offered yet; set BOOKING_REQUESTS_ENABLED=true (and show SpaceBooking) to switch it on
+  if (process.env.BOOKING_REQUESTS_ENABLED !== 'true') return Response.json({ error: 'Booking requests are not available yet. Please contact the space directly.' }, { status: 404 })
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
   if (!body) return Response.json({ error: 'Invalid request.' }, { status: 400 })
   // Spam trap: real visitors never fill the hidden field
