@@ -4,7 +4,7 @@ import { FaFacebook, FaInstagram, FaLinkedin, FaWhatsapp } from 'react-icons/fa6
 import { Breadcrumbs, PageShell, SectionTitle, SimilarSpaces } from '@/components/otaglab'
 import { PhotoTrigger, SpaceGallery, type GalleryPhoto } from '@/components/space-gallery'
 import { SpaceMap } from '@/components/space-map'
-import { galleryPhotos, toListing } from '@/lib/coworking'
+import { galleryPhotos, toListing, visibleOptions } from '@/lib/coworking'
 import { amenityCategories, currencySymbol, days, infoTopics, labelOf, photoCategories, roomTypes, workspaceTypes } from '@/lib/space-options'
 import type { SpaceListing } from '@/lib/spaces'
 import type { Amenity, Space, SpacePhoto } from '@/payload-types'
@@ -134,7 +134,7 @@ function ContactCard({ space }: { space: Space }) {
 
 export function SpaceDetail({ space, similar, preview }: { space: Space; similar: SpaceListing[]; preview: boolean }) {
   const listing = toListing(space)
-  const options = space.options ?? []
+  const options = visibleOptions(space)
   const info = (space.info ?? []).filter((item) => item.showOnWebsite !== false)
   const mapsUrl = webUrl(space.googleMapsUrl)
   const photoIds = photosByOption(options, galleryPhotos(space))

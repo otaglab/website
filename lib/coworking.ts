@@ -16,6 +16,9 @@ export function galleryPhotos(space: Pick<Space, 'gallery'>): SpacePhoto[] {
 
 export const coverPhoto = (space: Pick<Space, 'gallery'>) => galleryPhotos(space)[0] ?? null
 
+// Options shown on the website: draft options are hidden
+export const visibleOptions = (space: Pick<Space, 'options'>) => (space.options ?? []).filter((option) => option.status !== 'draft')
+
 // Cheapest daily desk price, falling back to any daily, hourly or monthly price
 export function priceFrom(options: SpaceOption[] | null | undefined) {
   const all = (options ?? []).filter((option) => option.available !== false)
@@ -41,9 +44,9 @@ export function hoursLabel(hours: Space['hours']) {
 
 export function toListing(space: Space, origin = BAKU_CENTER): SpaceListing {
   const [lng, lat] = space.location ?? [null, null]
-  const { price, unit } = priceFrom(space.options)
+  const { price, unit } = priceFrom(visibleOptions(space))
   const cover = coverPhoto(space)
-  const types = [...new Set((space.options ?? []).map((option) => labelOf(workspaceTypes, option.type)))]
+  const types = [...new Set(visibleOptions(space).map((option) => labelOf(workspaceTypes, option.type)))]
   const amenities = (space.amenities ?? []).map((item) => (typeof item.amenity === 'object' ? (item.amenity as Amenity).name : '')).filter(Boolean)
   return {
     slug: space.slug,

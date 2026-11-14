@@ -72,6 +72,8 @@ export const Spaces: CollectionConfig = {
             { name: 'tagline', type: 'text', localized: true, maxLength: 140 },
             { name: 'about', type: 'textarea', localized: true, validate: requiredInEnglish, admin: { description: 'Required in English.' } },
             { type: 'row', fields: [{ name: 'capacity', label: 'Total capacity (seats)', type: 'number', min: 0 }, { name: 'verified', type: 'checkbox', defaultValue: false, admin: { description: 'Shows a Verified badge.' } }] },
+            // Groups branches of the same company (e.g. two Fikir locations); not shown on the website yet
+            { name: 'operator', type: 'text', index: true, admin: { description: 'The company running this space. Branches of one company share the same operator name.' } },
           ],
         },
         {
@@ -101,7 +103,15 @@ export const Spaces: CollectionConfig = {
               labels: { singular: 'Option', plural: 'Options' },
               admin: { initCollapsed: true },
               fields: [
-                { type: 'row', fields: [{ name: 'type', type: 'select', required: true, options: workspaceTypes }, { name: 'name', label: 'Option name', type: 'text' }] },
+                {
+                  type: 'row',
+                  fields: [
+                    { name: 'type', type: 'select', required: true, options: workspaceTypes },
+                    { name: 'name', label: 'Option name', type: 'text' },
+                    // Draft options stay in the CMS but are hidden from the website
+                    { name: 'status', type: 'select', required: true, defaultValue: 'published', options: [{ value: 'published', label: 'Published' }, { value: 'draft', label: 'Draft (hidden from website)' }] },
+                  ],
+                },
                 { name: 'description', type: 'text', localized: true },
                 { type: 'row', fields: [{ name: 'seats', label: 'Seats per unit', type: 'number', min: 0 }, { name: 'units', label: 'Number of units', type: 'number', min: 0 }, { name: 'currency', type: 'select', defaultValue: 'AZN', options: currencies }] },
                 { type: 'row', fields: [price('priceHour', 'Price / hour'), price('priceEvening', 'Price / hour (evening)'), price('priceDay', 'Price / day'), price('priceWeek', 'Price / week'), price('priceMonth', 'Price / month')] },
