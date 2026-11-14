@@ -77,7 +77,11 @@ export async function getCoworkingSpaces(filters: SpaceFilters = {}): Promise<Sp
     if (district) conditions.push({ district: { equals: district } })
     const type = filters.type && valueOf(workspaceTypes, filters.type)
     if (type) conditions.push({ 'options.type': { equals: type } })
-    if (filters.query) conditions.push({ or: [{ name: { like: filters.query } }, { address: { like: filters.query } }] })
+    if (filters.query) {
+      // Free text matches the name, address or metro, or a district by name (e.g. "Nasimi")
+      const district = valueOf(districts, filters.query.trim().replace(/^./, (c) => c.toUpperCase()))
+      conditions.push({ or: [{ name: { like: filters.query } }, { address: { like: filters.query } }, { metro: { like: filters.query } }, ...(district ? [{ district: { equals: district } }] : [])] })
+    }
     if (filters.bounds) {
       const { west, south, east, north } = filters.bounds
       // PostGIS ST_Within on the location column
