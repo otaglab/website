@@ -17,6 +17,34 @@ import { Users } from './cms/collections/Users'
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const serverURL = process.env.NEXT_PUBLIC_SITE_URL
 
+// Origins whose browser requests may use the CMS login cookie. Payload treats a request from any other origin
+// as logged out ("You are not allowed to perform this action"), so list every way the site is reached:
+// the site URL with and without www, Vercel's production/preview/branch URLs, and localhost while developing.
+function siteOrigins() {
+  const origins = new Set<string>()
+  const add = (value: string | undefined) => {
+    if (!value) return
+    try {
+      const url = new URL(value.startsWith('http') ? value : `https://${value}`)
+      origins.add(url.origin)
+      // otaglab.com <-> www.otaglab.com (not for subdomains such as *.vercel.app)
+      if (url.hostname.startsWith('www.') || url.hostname.split('.').length === 2) {
+        const twin = url.hostname.startsWith('www.') ? url.hostname.slice(4) : `www.${url.hostname}`
+        origins.add(`${url.protocol}//${twin}${url.port ? `:${url.port}` : ''}`)
+      }
+    } catch {
+      // Ignore malformed values
+    }
+  }
+  add(serverURL)
+  add(process.env.VERCEL_PROJECT_PRODUCTION_URL)
+  add(process.env.VERCEL_URL)
+  add(process.env.VERCEL_BRANCH_URL)
+  if (process.env.NODE_ENV === 'development') for (const port of [3000, 3001, 3123]) for (const host of ['localhost', '127.0.0.1']) origins.add(`http://${host}:${port}`)
+  return [...origins]
+}
+const allowedOrigins = siteOrigins()
+
 // Production deployments must have their own secret. Preview and local production builds fall back to a
 // random one so they still build (CMS logins then reset on restart); only `next dev` uses a fixed secret.
 if (!process.env.PAYLOAD_SECRET && process.env.VERCEL_ENV === 'production') throw new Error('PAYLOAD_SECRET is not set')
@@ -26,8 +54,8 @@ export default buildConfig({
   secret,
   serverURL,
   // Only accept admin requests from our own site
-  csrf: serverURL ? [serverURL] : [],
-  cors: serverURL ? [serverURL] : [],
+  csrf: allowedOrigins,
+  cors: allowedOrigins,
   routes: { api: '/cms-api', admin: '/admin' },
   admin: {
     user: Users.slug,
