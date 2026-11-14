@@ -70,6 +70,8 @@ function pick(list: readonly Option[], input: string, aliases: Record<string, st
 }
 
 const workspaceAliases: Record<string, string> = { desk: 'hot-desk', 'dedicated desk': 'fixed-desk', 'desk + capsul': 'package', 'desk + capsule': 'package', capsul: 'capsule', 'seminar room': 'seminar-room' }
+const topicAliases: Record<string, string> = { 'entry requirements': 'access-security' }
+const photoAliases: Record<string, string> = { capsules: 'capsule', 'common area': 'common-area', 'common space': 'common-area', 'kitchen facilities': 'kitchen-cafe', 'study rooms': 'meeting-room', desk: 'hot-desk' }
 const yes = (value: string) => norm(value) === 'yes'
 const no = (value: string) => norm(value) === 'no'
 const num = (value: string) => (value && Number.isFinite(Number(value)) ? Number(value) : undefined)
@@ -130,6 +132,7 @@ async function amenityId(name: string, categoryLabel: string) {
 }
 
 type PhotoFile = { id: string; sourceUrl: string; load: () => Promise<Buffer> }
+const driveFailed = new Set<string>()
 
 // The photo files behind one sheet row: a single Drive file, or every image in a Drive folder
 async function drivePhotos(code: string, link: string): Promise<PhotoFile[]> {
@@ -143,6 +146,7 @@ async function drivePhotos(code: string, link: string): Promise<PhotoFile[]> {
       if (!images.length) warn(code, `Folder has no images: ${link}`)
       return images.map((image) => fromDrive(image.id))
     } catch (error) {
+      driveFailed.add(code)
       return warn(code, `Could not read from Google Drive (${(error as Error).message.slice(0, 120)}): ${link}`), []
     }
   }
@@ -160,7 +164,7 @@ async function drivePhotos(code: string, link: string): Promise<PhotoFile[]> {
   // Google's public folder page lists the files of a shared folder
   const res = await fetch(`https://drive.google.com/embeddedfolderview?id=${parsed.id}`)
   const ids = res.ok ? [...new Set([...(await res.text()).matchAll(/\/file\/d\/([\w-]{20,})/g)].map((match) => match[1]))] : []
-  if (!ids.length) warn(code, `Folder is empty or not shared "Anyone with the link": ${link}`)
+  if (!ids.length) { driveFailed.add(code); warn(code, `Folder is empty or not shared "Anyone with the link": ${link}`) }
   return ids.map(fromPublicLink)
 }
 
@@ -176,6 +180,10 @@ for (const row of spaces) {
   if (!location && url(row['Google Maps link'])) location = (await coordsFromMapsLink(row['Google Maps link'])) ?? undefined
   if (!location) warn(code, 'No coordinates — set the location in the CMS so it shows on the map')
   else if (lat === undefined) warn(code, `Coordinates taken from the Google Maps link (${location[1]}, ${location[0]}) — check the pin`)
+
+  const existing = await payload.find({ collection: 'spaces', where: { code: { equals: code } }, limit: 1, draft: true, locale: 'en' })
+  const optionKey = (type: string, name?: string | null) => `${type}|${norm(name ?? '')}`
+  const previousStatus = new Map((existing.docs[0]?.options ?? []).map((option) => [optionKey(option.type, option.name), option.status]))
 
   const options = forSpace(optionRows, code).map((option) => {
     const type = pick(workspaceTypes, option['Workspace type'], workspaceAliases)
@@ -194,6 +202,8 @@ for (const row of spaces) {
       available: no(option['Available now']) ? false : true,
       minimumBooking: option['Minimum booking'] || undefined,
       internalNote: option['Notes'] || undefined,
+      // A "Status" column wins; otherwise keep what the team set in the CMS
+      status: (option['Status'] ? (norm(option['Status']) === 'draft' ? 'draft' : 'published') : previousStatus.get(optionKey(type ?? 'other', option['Option name'])) ?? 'published') as 'draft' | 'published',
     }
   })
 
@@ -214,9 +224,8 @@ for (const row of spaces) {
   }))
 
   const infos = forSpace(infoRows, code).filter((info) => info['Details (EN)'])
-  const info = infos.map((item) => ({ topic: (pick(infoTopics, item['Topic']) ?? 'other') as never, details: item['Details (EN)'], showOnWebsite: !no(item['Show on website']) }))
+  const info = infos.map((item) => ({ topic: (pick(infoTopics, item['Topic'], topicAliases) ?? 'other') as never, details: item['Details (EN)'], showOnWebsite: !no(item['Show on website']) }))
 
-  const existing = await payload.find({ collection: 'spaces', where: { code: { equals: code } }, limit: 1, draft: true, locale: 'en' })
   // Never change a folder once set: photos already live there
   const storageFolder = existing.docs[0]?.storageFolder || folderFor.get(code) || row['Storage folder'] || undefined
 
@@ -228,6 +237,7 @@ for (const row of spaces) {
   const data = {
     name,
     code,
+    operator: row['Operator'] || undefined,
     // Filled in from the name by the CMS
     slug: '',
     tagline: row['Tagline (EN)'] || undefined,
@@ -255,13 +265,16 @@ for (const row of spaces) {
     storageFolder,
     contactPerson: row['Contact person'] || undefined,
     internalNotes: row['Internal notes (not published)'] || undefined,
-    // Everything except paused spaces goes live straight away
-    _status: (norm(row['Status']) === 'paused' ? 'draft' : 'published') as 'draft' | 'published',
+    // Ready (or Live) spaces are published; Draft and Paused stay unpublished
+    _status: (['ready', 'live'].includes(norm(row['Status'])) ? 'published' : 'draft') as 'draft' | 'published',
   }
 
-  const saved = existing.docs[0]
-    ? await payload.update({ collection: 'spaces', id: existing.docs[0].id, data, locale: 'en' })
-    : await payload.create({ collection: 'spaces', data, locale: 'en' })
+  // Drafts may still miss required details (address, …), so they're saved without those checks
+  const asDraft = data._status === 'draft'
+  const id = existing.docs[0]?.id
+  const saved = id
+    ? asDraft ? await payload.update({ collection: 'spaces', id, data, locale: 'en', draft: true }) : await payload.update({ collection: 'spaces', id, data, locale: 'en' })
+    : asDraft ? await payload.create({ collection: 'spaces', data, locale: 'en', draft: true }) : await payload.create({ collection: 'spaces', data, locale: 'en' })
 
   // Azerbaijani and Russian texts, matched to the saved rows by position
   for (const locale of ['az', 'ru'] as const) {
@@ -269,23 +282,21 @@ for (const row of spaces) {
     const about = row[`About (${suffix})`]
     const translatedInfo = infos.map((item) => item[`Details (${suffix})`])
     if (!about && !translatedInfo.some(Boolean)) continue
-    await payload.update({
-      collection: 'spaces',
-      id: saved.id,
-      locale,
-
-      data: { about: about || undefined, info: (saved.info ?? []).map((item, index) => ({ id: item.id, topic: item.topic, showOnWebsite: item.showOnWebsite, details: translatedInfo[index] || undefined })), _status: data._status },
-    })
+    const translated = { about: about || undefined, info: (saved.info ?? []).map((item, index) => ({ id: item.id, topic: item.topic, showOnWebsite: item.showOnWebsite, details: translatedInfo[index] || undefined })), _status: data._status }
+    if (asDraft) await payload.update({ collection: 'spaces', id: saved.id, locale, data: translated, draft: true })
+    else await payload.update({ collection: 'spaces', id: saved.id, locale, data: translated })
   }
 
   // Photos: one Space photos row each, stored in the space's bucket folder
   let photoCount = 0
+  const sheetPhotos = new Set<string>()
   for (const [rowIndex, photo] of forSpace(photoRows, code).entries()) {
     const link = photo['Google Drive link']
     if (!link) { warn(code, `Photo row "${photo['Photo of']} ${photo['Specific item']}" has no link`); continue }
     const item = photo['Specific item']
-    const category = norm(photo['Photo of']) === 'desks' ? (/stable|fixed|dedicated/i.test(item) ? 'fixed-desk' : 'hot-desk') : pick(photoCategories, photo['Photo of'], { capsules: 'capsule', 'common area': 'common-area' })
+    const category = norm(photo['Photo of']) === 'desks' ? (/stable|fixed|dedicated/i.test(item) ? 'fixed-desk' : 'hot-desk') : pick(photoCategories, photo['Photo of'], photoAliases)
     for (const [fileIndex, photoFile] of (await drivePhotos(code, link)).entries()) {
+      sheetPhotos.add(photoFile.sourceUrl)
       const already = await payload.find({ collection: 'space-photos', where: { sourceUrl: { equals: photoFile.sourceUrl } }, limit: 1 })
       if (already.docs[0]) { photoCount++; continue }
       try {
@@ -303,6 +314,16 @@ for (const row of spaces) {
     }
   }
   if (!photoCount) warn(code, 'No photos imported')
+
+  // Imported photos whose Drive file is no longer in the sheet were replaced or removed: delete them
+  // (and their files in the bucket). Photos uploaded by hand in the CMS have no source and are kept.
+  if (!driveFailed.has(code)) {
+    const imported = await payload.find({ collection: 'space-photos', where: { and: [{ space: { equals: saved.id } }, { sourceUrl: { exists: true } }] }, limit: 500, depth: 0 })
+    for (const old of imported.docs.filter((doc) => doc.sourceUrl && !sheetPhotos.has(doc.sourceUrl))) {
+      await payload.delete({ collection: 'space-photos', id: old.id })
+      warn(code, `Removed photo no longer in the sheet: ${old.item || old.category} (${old.filename})`)
+    }
+  }
 
   imported++
   console.log(`  ${existing.docs[0] ? 'updated' : 'created'} /spaces/${saved.slug} (${data._status}) in folder "${saved.storageFolder}" — ${options.length} options, ${amenities.length} amenities, ${hours.length} hours, ${photoCount} photos`)

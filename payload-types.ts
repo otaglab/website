@@ -150,6 +150,10 @@ export interface Space {
    * Shows a Verified badge.
    */
   verified?: boolean | null;
+  /**
+   * The company running this space. Branches of one company share the same operator name.
+   */
+  operator?: string | null;
   city: string;
   district?:
     | (
@@ -203,6 +207,7 @@ export interface Space {
           | 'virtual-office'
           | 'other';
         name?: string | null;
+        status: 'published' | 'draft';
         description?: string | null;
         seats?: number | null;
         units?: number | null;
@@ -665,6 +670,7 @@ export interface SpacesSelect<T extends boolean = true> {
   about?: T;
   capacity?: T;
   verified?: T;
+  operator?: T;
   city?: T;
   district?: T;
   address?: T;
@@ -685,6 +691,7 @@ export interface SpacesSelect<T extends boolean = true> {
     | {
         type?: T;
         name?: T;
+        status?: T;
         description?: T;
         seats?: T;
         units?: T;
