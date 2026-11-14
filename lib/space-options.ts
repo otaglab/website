@@ -11,6 +11,7 @@ export const workspaceTypes = options([
   ['meeting-room', 'Meeting room'],
   ['conference-room', 'Conference room'],
   ['seminar-room', 'Seminar room'],
+  ['study-room', 'Study room'],
   ['event-space', 'Event space'],
   ['phone-booth', 'Phone / Zoom booth'],
   ['capsule', 'Capsule'],
@@ -22,7 +23,7 @@ export type WorkspaceType = (typeof workspaceTypes)[number]['value']
 
 // Desk-style options are used for the "from ₼X / day" price on cards
 export const deskTypes: WorkspaceType[] = ['hot-desk', 'fixed-desk', 'cubicle-desk']
-export const roomTypes: WorkspaceType[] = ['meeting-room', 'conference-room', 'seminar-room', 'event-space', 'capsule', 'phone-booth']
+export const roomTypes: WorkspaceType[] = ['meeting-room', 'conference-room', 'seminar-room', 'study-room', 'event-space', 'capsule', 'phone-booth']
 
 export const districts = options([
   ['binagadi', 'Binagadi'], ['garadagh', 'Garadagh'], ['khatai', 'Khatai'], ['khazar', 'Khazar'], ['narimanov', 'Narimanov'], ['nasimi', 'Nasimi'],
@@ -51,7 +52,7 @@ export const amenityCategories = options([
 
 export const photoCategories = options([
   ['hot-desk', 'Hot desk'], ['fixed-desk', 'Fixed desk'], ['cubicle-desk', 'Cubicle desk'], ['private-office', 'Private office'],
-  ['meeting-room', 'Meeting room'], ['conference-room', 'Conference room'], ['event-space', 'Event space'], ['phone-booth', 'Phone / Zoom booth'],
+  ['meeting-room', 'Meeting room'], ['study-room', 'Study room'], ['conference-room', 'Conference room'], ['event-space', 'Event space'], ['phone-booth', 'Phone / Zoom booth'],
   ['capsule', 'Capsule'], ['common-area', 'Common area / lounge'], ['kitchen-cafe', 'Kitchen / café'], ['reception', 'Reception'],
   ['building-exterior', 'Building exterior'], ['other', 'Other'],
 ] as const)

@@ -69,9 +69,9 @@ function pick(list: readonly Option[], input: string, aliases: Record<string, st
   return aliases[norm(input)] ?? list.find((item) => norm(item.label) === norm(input) || item.value === norm(input))?.value
 }
 
-const workspaceAliases: Record<string, string> = { desk: 'hot-desk', 'dedicated desk': 'fixed-desk', 'desk + capsul': 'package', 'desk + capsule': 'package', capsul: 'capsule', 'seminar room': 'seminar-room' }
+const workspaceAliases: Record<string, string> = { 'study rooms': 'study-room', desk: 'hot-desk', 'dedicated desk': 'fixed-desk', 'desk + capsul': 'package', 'desk + capsule': 'package', capsul: 'capsule', 'seminar room': 'seminar-room' }
 const topicAliases: Record<string, string> = { 'entry requirements': 'access-security' }
-const photoAliases: Record<string, string> = { capsules: 'capsule', 'common area': 'common-area', 'common space': 'common-area', 'kitchen facilities': 'kitchen-cafe', 'study rooms': 'meeting-room', desk: 'hot-desk' }
+const photoAliases: Record<string, string> = { capsules: 'capsule', 'common area': 'common-area', 'common space': 'common-area', 'kitchen facilities': 'kitchen-cafe', 'study rooms': 'study-room', desk: 'hot-desk' }
 const yes = (value: string) => norm(value) === 'yes'
 const no = (value: string) => norm(value) === 'no'
 const num = (value: string) => (value && Number.isFinite(Number(value)) ? Number(value) : undefined)
@@ -207,6 +207,11 @@ for (const row of spaces) {
     }
   })
 
+  // Options added in the CMS that the sheet doesn't list are kept, after the sheet's options
+  const sheetOptionKeys = new Set(options.map((option) => optionKey(option.type, option.name)))
+  const cmsOnlyOptions = (existing.docs[0]?.options ?? []).filter((option) => !sheetOptionKeys.has(optionKey(option.type, option.name)))
+  for (const option of cmsOnlyOptions) warn(code, `Kept option added in the CMS: ${option.name || option.type}`)
+
   const amenities = []
   for (const amenity of forSpace(amenityRows, code)) {
     if (!amenity['Amenity']) continue
@@ -225,6 +230,9 @@ for (const row of spaces) {
 
   const infos = forSpace(infoRows, code).filter((info) => info['Details (EN)'])
   const info = infos.map((item) => ({ topic: (pick(infoTopics, item['Topic'], topicAliases) ?? 'other') as never, details: item['Details (EN)'], showOnWebsite: !no(item['Show on website']) }))
+
+  // A section the sheet leaves empty keeps what the team entered in the CMS
+  const keepIfEmpty = <T,>(rows: T[]) => (rows.length || !existing.docs[0] ? rows : undefined)
 
   // Never change a folder once set: photos already live there
   const storageFolder = existing.docs[0]?.storageFolder || folderFor.get(code) || row['Storage folder'] || undefined
@@ -258,10 +266,10 @@ for (const row of spaces) {
     instagram: url(row['Instagram']),
     facebook: url(row['Facebook']),
     linkedin: url(row['LinkedIn']),
-    options,
-    amenities,
-    hours,
-    info,
+    options: [...options, ...cmsOnlyOptions],
+    amenities: keepIfEmpty(amenities),
+    hours: keepIfEmpty(hours),
+    info: keepIfEmpty(info),
     storageFolder,
     contactPerson: row['Contact person'] || undefined,
     internalNotes: row['Internal notes (not published)'] || undefined,
